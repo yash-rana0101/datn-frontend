@@ -89,7 +89,7 @@ export function useWalletAuth(): UseWalletAuthReturn {
 
       // Step 5: Sign message with wallet (pass nonce for correct verification)
       setIsAuthenticating(true);
-      const signature = await walletProvider.signMessage(message, nonce);
+      const signResult = await walletProvider.signMessage(message, nonce);
 
       // Step 6: Get public key for verification
       const publicKey = await walletProvider.getPublicKey();
@@ -97,10 +97,11 @@ export function useWalletAuth(): UseWalletAuthReturn {
         throw new Error('Failed to get public key from wallet');
       }
 
-      // Step 7: Login to backend
+      // Step 7: Login to backend with the fullMessage that was actually signed
       const loginResponse = await loginMutation.mutateAsync({
         wallet: address,
-        signature,
+        signature: signResult.signature,
+        message: signResult.fullMessage, // Send the fullMessage that Petra signed
         nonce,
         timestamp,
         publicKey,

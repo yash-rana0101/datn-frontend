@@ -10,7 +10,16 @@ import WEB3_CONFIG from './config';
 interface PetraWallet {
   connect: () => Promise<{ address: string; publicKey: string }>;
   disconnect: () => Promise<void>;
-  signMessage: (message: { message: string; nonce: string }) => Promise<{ signature: string }>;
+  signMessage: (message: { message: string; nonce: string }) => Promise<{ 
+    signature: string;
+    fullMessage: string;
+    address: string;
+    application: string;
+    chainId: number;
+    message: string;
+    nonce: string;
+    prefix: string;
+  }>;
   account: () => Promise<{ address: string; publicKey: string } | null>;
   network: () => Promise<{ name: string; chainId: string }>;
   isConnected: () => Promise<boolean>;
@@ -189,7 +198,7 @@ export class WalletProviderService {
   /**
    * Sign message for authentication using Petra wallet
    */
-  async signMessage(message: string, nonce: string): Promise<string> {
+  async signMessage(message: string, nonce: string): Promise<{ signature: string; fullMessage: string }> {
     try {
       const petra = this.getPetraWallet();
       
@@ -207,7 +216,11 @@ export class WalletProviderService {
         throw new Error('Failed to get signature from wallet');
       }
 
-      return response.signature;
+      // Return both signature and the fullMessage that was actually signed by Petra
+      return {
+        signature: response.signature,
+        fullMessage: response.fullMessage, // This is what was actually signed
+      };
     } catch (error: unknown) {
       console.error('Error signing message:', error);
       

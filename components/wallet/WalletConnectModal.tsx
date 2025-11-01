@@ -49,6 +49,7 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
   const [registrationData, setRegistrationData] = useState<{
     walletAddress: string;
     signature: string;
+    fullMessage: string;
     nonce: string;
     timestamp: number;
     publicKey: string;
@@ -66,7 +67,7 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
       const message = createAuthMessage(address, nonceStr, timestamp);
 
       // Step 3: Sign message with Petra (pass nonce for correct verification)
-      const signature = await walletProvider.signMessage(message, nonceStr);
+      const signResult = await walletProvider.signMessage(message, nonceStr);
 
       // Step 4: Get public key for signature verification
       const publicKey = await walletProvider.getPublicKey();
@@ -77,7 +78,8 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
       // Step 5: Try to login with backend format
       const loginResponse = await authService.login({
         wallet: address, // Aptos wallet address
-        signature, // Signature from Petra
+        signature: signResult.signature, // Signature from Petra
+        message: signResult.fullMessage, // The fullMessage that Petra signed
         nonce: nonceStr, // Random nonce
         timestamp, // Current timestamp
         publicKey, // Ed25519 public key for verification
@@ -115,11 +117,12 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
           const nonceStr = Math.random().toString(36).substring(2, 15);
           const timestamp = Date.now();
           const message = createAuthMessage(address, nonceStr, timestamp);
-          const signature = await walletProvider.signMessage(message, nonceStr);
+          const signResult = await walletProvider.signMessage(message, nonceStr);
 
           setRegistrationData({
             walletAddress: address,
-            signature,
+            signature: signResult.signature,
+            fullMessage: signResult.fullMessage,
             nonce: nonceStr, // Store nonce separately
             timestamp,
             publicKey, // Add public key for verification
@@ -145,6 +148,7 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
         const loginResponse = await authService.login({
           wallet: registrationData.walletAddress,
           signature: registrationData.signature,
+          message: registrationData.fullMessage, // The fullMessage that was signed
           nonce: registrationData.nonce, // Use the same nonce
           timestamp: registrationData.timestamp, // Use the same timestamp
           publicKey: registrationData.publicKey, // Use the same public key
@@ -193,8 +197,10 @@ export const WalletConnectModal: React.FC<WalletConnectModalProps> = ({
       <RegistrationForm
         walletAddress={registrationData.walletAddress}
         signature={registrationData.signature}
+        message={registrationData.fullMessage}
         timestamp={registrationData.timestamp}
         publicKey={registrationData.publicKey}
+        nonce={registrationData.nonce}
         onSuccess={handleRegistrationSuccess}
         onCancel={handleRegistrationCancel}
       />

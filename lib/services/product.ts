@@ -42,6 +42,18 @@ export interface CreateProductRequest {
 }
 
 /**
+ * Update product request interface
+ */
+export interface UpdateProductRequest {
+  name?: string;
+  price?: number;
+  description?: string;
+  quantity?: number;
+  category?: string;
+  images?: string[];
+}
+
+/**
  * API Response wrapper
  */
 interface ApiResponse<T> {
@@ -76,8 +88,50 @@ export const productService = {
    * @param data - Product data
    * @returns Promise with created product
    */
-  createProduct: async (data: CreateProductRequest): Promise<AxiosResponse<ApiResponse<Product>>> => {
+  /**
+   * Create new product. Accepts either a JSON body (with image URLs) or a FormData instance
+   * when uploading files (multipart/form-data).
+   */
+  createProduct: async (data: CreateProductRequest | FormData): Promise<AxiosResponse<ApiResponse<Product>>> => {
+    if (data instanceof FormData) {
+      // For FormData uploads we MUST let the browser set the Content-Type
+      // (including the multipart boundary). The axios instance has a default
+      // Content-Type header, so call the raw instance and explicitly unset the
+      // header here so the browser will provide the correct multipart boundary.
+      return apiClient.getInstance().post('/v1/product', data, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    }
+
     return apiClient.post('/v1/product', data);
+  },
+
+  /**
+   * Update existing product
+   * @param id - Product ID
+   * @param data - Product data to update (can be FormData or JSON)
+   * @returns Promise with updated product
+   */
+  updateProduct: async (id: string, data: UpdateProductRequest | FormData): Promise<AxiosResponse<ApiResponse<Product>>> => {
+    if (data instanceof FormData) {
+      return apiClient.getInstance().put(`/v1/product/${id}`, data, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      });
+    }
+    return apiClient.put(`/v1/product/${id}`, data);
+  },
+
+  /**
+   * Delete product
+   * @param id - Product ID
+   * @returns Promise with delete confirmation
+   */
+  deleteProduct: async (id: string): Promise<AxiosResponse<ApiResponse<void>>> => {
+    return apiClient.delete(`/v1/product/${id}`);
   },
 };
 

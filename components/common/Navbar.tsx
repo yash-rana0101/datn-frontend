@@ -5,16 +5,17 @@
 
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import Logo from './Logo';
 import { WalletButton } from '@/components/wallet/WalletButton';
 import { WalletConnectModal } from '@/components/wallet/WalletConnectModal';
 import { useWalletEvents } from '@/lib/web3';
 import { useAuth } from '@/lib/providers/AuthProvider';
-import { Home, Package, Search, ShoppingBag, User } from 'lucide-react';
+import { useLogout } from '@/lib/hooks/useAuthQuery';
+import { Home, Package, Search, ShoppingBag, User, LogOut } from 'lucide-react';
 
 interface NavItem {
   label: string;
@@ -33,14 +34,52 @@ const navItems: NavItem[] = [
   { label: 'Profile', href: '/profile', icon: User, requiresAuth: true },
 ];
 
+// Seller-specific navigation
+const sellerNavItems: NavItem[] = [
+  { label: 'Dashboard', href: '/seller', icon: Home },
+  { label: 'Products', href: '/seller/products', icon: Package },
+  { label: 'Inventory', href: '/seller/inventory', icon: ShoppingBag, requiresAuth: true },
+  { label: 'Payments', href: '/seller/payments', icon: User, requiresAuth: true },
+];
+
 export const Navbar: React.FC = () => {
   const pathname = usePathname();
+  const router = useRouter();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [showWalletModal, setShowWalletModal] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const { isAuthenticated, user } = useAuth();
+  const logoutMutation = useLogout();
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // Setup wallet event listeners
   useWalletEvents();
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowProfileDropdown(false);
+      }
+    };
+
+    if (showProfileDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showProfileDropdown]);
+
+  const handleLogout = async () => {
+    try {
+      await logoutMutation.mutateAsync();
+      setShowProfileDropdown(false);
+      router.push('/');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    }
+  };
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-black">
@@ -53,7 +92,7 @@ export const Navbar: React.FC = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-1">
-            {navItems
+            {(user && user.role === 'SELLER' ? sellerNavItems : navItems)
               .filter(item => {
                 // Hide items that require auth if user is not authenticated
                 if (item.requiresAuth && !isAuthenticated) return false;
@@ -90,22 +129,46 @@ export const Navbar: React.FC = () => {
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-3">
-            {/* User Info (when authenticated) */}
+            {/* User Info (when authenticated) with Dropdown */}
             {isAuthenticated && user && (
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#C6D870]/10 border border-[#C6D870]/30">
-                <div className="w-8 h-8 rounded-full bg-[#C6D870] flex items-center justify-center">
-                  <span className="text-black font-semibold text-sm">
-                    {user.name.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-sm font-medium text-black dark:text-white">
-                    {user.name}
-                  </span>
-                  <span className="text-xs text-gray-500 dark:text-gray-400">
-                    {user.role}
-                  </span>
-                </div>
+              <div className="hidden md:block relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#C6D870]/10 border border-[#C6D870]/30 hover:bg-[#C6D870]/20 transition-colors cursor-pointer"
+                >
+                  <div className="w-8 h-8 rounded-full bg-[#C6D870] flex items-center justify-center">
+                    <span className="text-black font-semibold text-sm">
+                      {user.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-sm font-medium text-black dark:text-white">
+                      {user.name}
+                    </span>
+                    <span className="text-xs text-gray-500 dark:text-gray-400">
+                      {user.role}
+                    </span>
+                  </div>
+                  <svg className="w-4 h-4 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                </button>
+
+                {/* Dropdown Menu */}
+                {showProfileDropdown && (
+                  <div className="absolute right-0 mt-2 w-48 rounded-xl border border-gray-700 bg-[#0b0b0b] backdrop-blur-lg shadow-xl z-50">
+                    <div className="p-2">
+                      <button
+                        onClick={handleLogout}
+                        disabled={logoutMutation.isPending}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                      >
+                        <LogOut className="w-4 h-4" />
+                        <span>{logoutMutation.isPending ? 'Logging out...' : 'Logout'}</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -164,6 +227,18 @@ export const Navbar: React.FC = () => {
                       </div>
                     </div>
                   </div>
+                  {/* Mobile Logout Button */}
+                  <button
+                    onClick={() => {
+                      handleLogout();
+                      setMobileMenuOpen(false);
+                    }}
+                    disabled={logoutMutation.isPending}
+                    className="w-full mt-3 flex items-center justify-center gap-2 px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 rounded-lg transition-colors border border-red-500/20"
+                  >
+                    <LogOut className="w-4 h-4" />
+                    <span>{logoutMutation.isPending ? 'Logging out...' : 'Logout'}</span>
+                  </button>
                 </div>
               )}
 

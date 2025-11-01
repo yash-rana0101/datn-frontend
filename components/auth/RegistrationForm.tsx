@@ -16,8 +16,10 @@ import type { RegisterRequest } from '@/lib/types/auth.types';
 interface RegistrationFormProps {
   walletAddress: string;
   signature: string;
+  message: string; // The fullMessage that was signed by Petra
   timestamp: number;
   publicKey: string;
+  nonce: string; // Add nonce to props
   onSuccess?: () => void;
   onCancel?: () => void;
 }
@@ -25,8 +27,10 @@ interface RegistrationFormProps {
 export function RegistrationForm({
   walletAddress,
   signature,
+  message,
   timestamp,
   publicKey,
+  nonce,
   onSuccess,
   onCancel,
 }: RegistrationFormProps) {
@@ -46,7 +50,8 @@ export function RegistrationForm({
       ...formData,
       wallet: walletAddress,
       signature,
-      nonce: String(timestamp), // Backend expects nonce as string
+      message, // The fullMessage that was signed by Petra
+      nonce, // Use the actual nonce that was used to create the signature
       timestamp,
       publicKey,
     };

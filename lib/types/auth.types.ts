@@ -17,6 +17,7 @@ export interface User {
 export interface LoginRequest {
   wallet: string;
   signature: string;
+  message: string; // The fullMessage that was signed by Petra
   nonce: string;
   timestamp: number;
   publicKey: string;
@@ -28,6 +29,7 @@ export interface RegisterRequest {
   country: string;
   wallet: string;
   signature: string;
+  message: string; // The fullMessage that was signed by Petra
   nonce: string;
   role: 'BUYER' | 'SELLER';
   timestamp: number;
